@@ -1,15 +1,12 @@
-/* @file HelloKeypad.pde
-|| @version 1.0
-|| @author Alexander Brevig
-|| @contact alexanderbrevig@gmail.com
-||
-|| @description
-|| | Demonstrates the simplest use of the matrix Keypad library.
-|| #
+/* 
+Juan Esteban Sotelo Palta
+Jose Esteban Narvaez Maldonado
+JULIAN CAMILO CARVAJAL MEJIA
 */
 #include <stdio.h>
 #include <Keypad.h>
 #include "AsyncTaskLib.h"
+#include "StateMachineLib.h"
 #include "DHTStable.h"
 #include <LiquidCrystal.h>
 #include "String.h"
@@ -18,6 +15,7 @@
 #define greenPin 23
 #define bluePin 25 
 #define buzzerPin 30
+#define DHT11_PIN 52
 #define N_B0  31
 #define N_C1  33
 #define N_CS1 35
@@ -112,15 +110,19 @@ int tempL = 26;
 int luzH = 200;
 int luzLow = 800;
 int point = 0;
-int state =0;
+int firstTime=0;
+int state =6;
 int i=0;
 int x=0;
 char ax [3];
 const int tempMax=125;
+const int LuzMax=1000;
+const int photocellPin = A0;
 const int tempMin=0;
+const int LuzMin=0;
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-
+const int buttonPin = 53; //the button pin attach to
 const String menus[5]={"1.UmbralTempHigh",
                       "2.UmbralTempLow",
                       "3.UmbralLuzHigh",
@@ -138,7 +140,7 @@ char keys[ROWS][COLS] = {
 byte rowPins[ROWS] = {9, 8, 7, 6}; //connect to the row pinouts of the keypad
 byte colPins[COLS] = {26, 27, 28,43}; //connect to the column pinouts of the keypad
 
-byte heart[8] = {
+byte pointer[8] = {
   0b00001,
   0b00011,
   0b00111,
@@ -149,7 +151,7 @@ byte heart[8] = {
   0b00001
 };
 
-Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS ); 
 
 int melodia[] = {
   N_D3, N_D3, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_C3, N_C3, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_B2, N_B2, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_AS2, N_AS2, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_D3, N_D3, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_C3, N_C3, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_B2, N_B2, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_AS2, N_AS2, N_D4, N_A3, 0, N_GS3, N_G3, N_F3, N_D3, N_F3, N_G3, N_D4, N_D4, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_C4, N_C4, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_B3, N_B3, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_AS3, N_AS3, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_D4, N_D4, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_C4, N_C4, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_B3, N_B3, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_AS3, N_AS3, N_D5, N_A4, 0, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, N_F4, N_F4, N_F4, N_F4, N_F4, N_D4, N_D4, N_D4, N_F4, N_F4, N_F4, N_G4, N_GS4, N_G4, N_F4, N_D4, N_F4, N_G4, 0, N_F4, N_F4, N_F4, N_G4, N_GS4, N_A4, N_C5, N_A4, N_D5, N_D5, N_D5, N_A4, N_D5, N_C5, N_F4, N_F4, N_F4, N_F4, N_F4, N_D4, N_D4, N_D4, N_F4, N_F4, N_F4, N_F4, N_D4, N_F4, N_E4, N_D4, N_C4, 0, N_G4, N_E4, N_D4, N_D4, N_D4, N_D4, N_F3, N_G3, N_AS3, N_C4, N_D4, N_F4, N_C5, 0, N_F4, N_D4, N_F4, N_G4, N_GS4, N_G4, N_F4, N_D4, N_GS4, N_G4, N_F4, N_D4, N_F4, N_F4, N_F4, N_GS4, N_A4, N_C5, N_A4, N_GS4, N_G4, N_F4, N_D4, N_E4, N_F4, N_G4, N_A4, N_C5, N_CS5, N_GS4, N_GS4, N_G4, N_F4, N_G4, N_F3, N_G3, N_A3, N_F4, N_E4, N_D4, N_E4, N_F4, N_G4, N_E4, N_A4, N_A4, N_G4, N_F4, N_DS4, N_CS4, N_DS4, 0, N_F4, N_D4, N_F4, N_G4, N_GS4, N_G4, N_F4, N_D4, N_GS4, N_G4, N_F4, N_D4, N_F4, N_F4, N_F4, N_GS4, N_A4, N_C5, N_A4, N_GS4, N_G4, N_F4, N_D4, N_E4, N_F4, N_G4, N_A4, N_C5, N_CS5, N_GS4, N_GS4, N_G4, N_F4, N_G4, N_F3, N_G3, N_A3, N_F4, N_E4, N_D4, N_E4, N_F4, N_G4, N_E4, N_A4, N_A4, N_G4, N_F4, N_DS4, N_CS4, N_DS4, 
@@ -168,24 +170,78 @@ void actPanta(int a, int b){
 
   }
 }
+
+// Referente a la contraseña
+void inpass();
+void temp();
+AsyncTask Clave(100,true,inpass);
+AsyncTask Tiempo(10000,true,temp);
+int cont=0;
+int LongContr=0;
+char Password[5]="12345";  
+char Input[5]; 
+//
+
+void inpass(){
+  key = keypad.getKey(); 
+  lcd.setCursor(0,0);
+  lcd.println("Contrasenia");
+  Tiempo.Update();
+  if (key){     
+    
+    lcd.setCursor(LongContr, 1);
+    if(key!='*'&&LongContr<5){
+      lcd.println('*');
+      Input[LongContr]=key;
+      LongContr++;
+    }
+    else{   
+      lcd.clear();
+      lcd.setCursor(0, 1);  
+      LongContr=0;
+      Serial.println(Input);
+      Serial.println(Password);
+      if(strncmp(Password,Input,5)==0){
+        cont=5;        
+      }else{
+        lcd.println("Incorrecta");
+        cont++;
+        color(0,255,0);               
+        delay(2000);
+        lcd.clear();                
+      }              
+      lcd.setCursor(0, 0); 
+    }
+  }  
+}
+void temp(){
+  key = '*';
+}
+
 void setup(){
-  lcd.createChar(0, heart);
+  lcd.createChar(0, pointer);
   lcd.begin(16,2);
   Serial.begin(9600);
-  actPanta(0, 1);
-  lcd.setCursor(15, 0);
-  lcd.write(byte(0)); 
-}
-void color (unsigned char red, unsigned char green, unsigned char blue) // the color generating function
-{
-analogWrite(redPin, red);
-analogWrite(bluePin, blue);
-analogWrite(greenPin, green);
+  Clave.Start();
+  Tiempo.Start();
+  //actPanta(0, 1);
+  //lcd.setCursor(15, 0);
+  //lcd.write(byte(0)); 
+  state=6;
 }
 
-
+void color (unsigned char red, unsigned char green, unsigned char blue){ // the color generating function
+  analogWrite(redPin, red);
+  analogWrite(bluePin, blue);
+  analogWrite(greenPin, green);
+}
 void loop(){
   if(state==0){
+    if(firstTime==0){
+      actPanta(0, 1);
+      lcd.setCursor(15, 0);
+      firstTime=1;  
+    }
     char key = keypad.getKey(); 
     if (key){
       if(key=='A'){
@@ -226,26 +282,33 @@ void loop(){
         }else if(point==1){
           state=2;
             lcd.clear();
-        }else if(point==4){
+        }else if(point==2){
+          state=3;
+            lcd.clear();
+        }else if(point==3){
           state=4;
+            lcd.clear();
+        }else if(point==4){
+          state=5;
             lcd.clear();
         }
       }
     }    
   }else if(state==1){
-  
     lcd.setCursor(0, 0);
-    lcd.println("Ingrese TempH");
+    lcd.println("IngreseTempH " );
+    lcd.setCursor(0, 1);
+    lcd.println(tempH);
     char key = keypad.getKey(); 
     if (key){
-      lcd.setCursor(i, 1);
+      lcd.setCursor(i+5, 1);
       if(key!='*' && i<3){
         lcd.println(key);
         ax[i]= key; 
         i++;     
         //atoi();        
       } 
-      else if(key=='*'){
+      else if(key=='*'){        
           x=atoi(ax);
         if(x>tempL && x>tempMin && x<tempMax){
           tempH=x;
@@ -272,10 +335,12 @@ void loop(){
   }else if(state==2){
   
     lcd.setCursor(0, 0);
-    lcd.println("Ingrese TempL");
+    lcd.println("IngreseTempL");
+    lcd.setCursor(0, 1);
+    lcd.println(tempL);
     char key = keypad.getKey(); 
     if (key){
-      lcd.setCursor(i, 1);
+      lcd.setCursor(i+5, 1);
       if(key!='*' && i<3){
         lcd.println(key);
         ax[i]= key; 
@@ -306,9 +371,89 @@ void loop(){
         point=0;                     
       }
     }  
+  }else if(state==3){
+  
+    lcd.setCursor(0, 0);
+    lcd.println("Ingrese luzH");
+    lcd.setCursor(0, 1);
+    lcd.println(luzH);
+    char key = keypad.getKey(); 
+    if (key){
+      lcd.setCursor(i+6, 1);
+      if(key!='*' && i<3){
+        lcd.println(key);
+        ax[i]= key; 
+        i++;     
+        //atoi();        
+      } 
+      else if(key=='*'){
+          x=atoi(ax);
+        if((x<luzLow) && (x>LuzMin) && (x<LuzMax)){
+          luzH=x;
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.println("Actualizado");   
+        }else{
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.println("Error!"); 
+          lcd.println(x);         
+        }   
+        ax[0]=0;
+        ax[1]=0;
+        ax[2]=0;        
+        delay(2000);
+        state=0;  
+        actPanta(0, 1);
+        lcd.setCursor(15, 0);
+        lcd.write(byte(0)); 
+        point=0;                     
+      }
+    }
   }else if(state==4){
+  
+    lcd.setCursor(0, 0);
+    lcd.println("Ingrese luzLow");
+    lcd.setCursor(0, 1);
+    lcd.println(luzLow);
+    char key = keypad.getKey(); 
+    if (key){
+      lcd.setCursor(i+6, 1);
+      if(key!='*' && i<3){
+        lcd.println(key);
+        ax[i]= key; 
+        i++;     
+        //atoi();        
+      } 
+      else if(key=='*'){
+          x=atoi(ax);
+        if(x>luzH && x>LuzMin && x<LuzMax){
+          luzLow=x;
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.println("Actualizado");   
+        }else{
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.println("Error!"); 
+          lcd.println(x);         
+        }   
+        ax[0]=0;
+        ax[1]=0;
+        ax[2]=0;        
+        delay(2000);
+        state=0;  
+        actPanta(0, 1);
+        lcd.setCursor(15, 0);
+        lcd.write(byte(0)); 
+        point=0;                     
+      }
+    }  
+  }else if(state==5){
     tempH = 29;
     tempL = 26;
+    luzH = 200;
+    luzLow = 800;
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.println("Reseted"); 
@@ -318,6 +463,16 @@ void loop(){
     lcd.setCursor(15, 0);
     lcd.write(byte(0)); 
     point=0; 
+  }else if(state==6){
+    if(cont<3){
+    Clave.Update(); 
+  }else if(cont == 3){
+    lcd.println("Bloqueado");
+        cont=4;
+  }else if(cont == 5){
+        lcd.println("Correcta");       
+        color(255,0,0); 
+        state=0;  
   }
 }
-
+}
